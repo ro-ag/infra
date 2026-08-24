@@ -280,6 +280,13 @@ Check these first when a workflow misbehaves:
     check and the CI-status lookup both come up empty. Peel it once:
     `sha=$(git rev-list -n 1 "$GITHUB_REF")` works for annotated and
     lightweight tags alike. Both release workflows do this.
+12. **Local `actionlint` is not CI `actionlint`.** The CLI only runs
+    shellcheck when it finds it locally; the `rhysd/actionlint` Docker
+    image always has it. A deliberately unquoted `$TEST_ARGS` (word
+    splitting is the point) passes locally and fails CI as SC2086.
+    Silence it in-band with a reason: `# shellcheck disable=SC2086` on
+    the line above. Verify the way CI does — image or shellcheck
+    installed — not with the bare binary.
 
 ## 9. Measured results (pitch, 2026-08-24)
 

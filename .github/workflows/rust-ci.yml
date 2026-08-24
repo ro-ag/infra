@@ -62,7 +62,9 @@ jobs:
         if: inputs.apt-packages != ''
         env:
           APT_PACKAGES: ${{ inputs.apt-packages }}
-        run: sudo apt-get update && sudo apt-get install -y $APT_PACKAGES
+        run: |
+          # shellcheck disable=SC2086  # splitting intended: space-separated package list
+          sudo apt-get update && sudo apt-get install -y $APT_PACKAGES
       - run: cargo fmt --all -- --check
       # clippy --all-targets already type-checks the whole graph — no cargo check
       - run: cargo clippy --workspace --all-targets -- -D warnings
@@ -89,10 +91,14 @@ jobs:
         if: inputs.apt-packages != ''
         env:
           APT_PACKAGES: ${{ inputs.apt-packages }}
-        run: sudo apt-get update && sudo apt-get install -y $APT_PACKAGES
+        run: |
+          # shellcheck disable=SC2086  # splitting intended: space-separated package list
+          sudo apt-get update && sudo apt-get install -y $APT_PACKAGES
       - env:
           TEST_ARGS: ${{ inputs.test-args }}
-        run: cargo test $TEST_ARGS
+        run: |
+          # shellcheck disable=SC2086  # splitting intended: cargo test flags
+          cargo test $TEST_ARGS
 
   test-windows:
     name: test (windows)
@@ -116,7 +122,9 @@ jobs:
       - env:
           TEST_ARGS: ${{ inputs.test-args }}
         shell: bash
-        run: cargo test $TEST_ARGS
+        run: |
+          # shellcheck disable=SC2086  # splitting intended: cargo test flags
+          cargo test $TEST_ARGS
 
   test-macos:
     name: test (macos)
@@ -139,7 +147,9 @@ jobs:
           shared-key: rust-${{ runner.os }}
       - env:
           TEST_ARGS: ${{ inputs.test-args }}
-        run: cargo test $TEST_ARGS
+        run: |
+          # shellcheck disable=SC2086  # splitting intended: cargo test flags
+          cargo test $TEST_ARGS
 
   # Single status check to require in branch protection.
   ci:
