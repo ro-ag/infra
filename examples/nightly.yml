@@ -9,6 +9,10 @@ on:
     - cron: '17 5 * * 1' # Mondays ~05:17
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false # scheduled/manual runs must not be killed
+
 jobs:
   nightly:
     uses: ro-ag/infra/.github/workflows/rust-nightly.yml@main

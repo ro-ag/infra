@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths-ignore: ['**/*.md', 'docs/**']
   pull_request:
+    types: [opened, synchronize, reopened, labeled] # labeled: run-macos gate must fire
     paths-ignore: ['**/*.md', 'docs/**']
   workflow_dispatch:
 
