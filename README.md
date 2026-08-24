@@ -10,6 +10,13 @@ reusable GitHub Actions workflows.
   gate, optional Windows/macOS legs, `rust-cache` throughout.
 - `workflows/rust-release.yml` — reusable library release: tag/CI
   validation → crates.io publish → GitHub release, no re-tested CI.
+- `workflows/rust-bin-release.yml` — reusable binary release: 4 native
+  builds (linux amd64/arm64, windows amd64, macOS arm64) → macOS codesign +
+  notarize (fail-closed, via the apple-developer-signing bundle) →
+  checksummed GitHub release.
+- `templates/pitch/` — a complete reference app (`pitch`, a
+  note/frequency/MIDI CLI) with fleet-standard CI + release callers; copy
+  it to bootstrap a new repo.
 - `examples/` — caller workflows to copy into each repo.
 
 Repos call the reusable workflows with
