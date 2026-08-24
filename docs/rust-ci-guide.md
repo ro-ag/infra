@@ -41,10 +41,17 @@ concurrency:
   `target/` + registry, keyed on `Cargo.lock`. Caching only
   `~/.cargo/registry` (native-score, parser) leaves the expensive part —
   compiling the dep graph — uncached.
-- **Share cache keys between CI and release.** Use the same `shared-key`
-  (e.g. `rust-${{ runner.os }}`) in both workflows so the tag build starts
-  warm from the main-branch run. Default rust-cache keys include the job
-  id, so CI and release jobs do **not** share unless you set `shared-key`.
+- **Share cache keys between CI and release — byte-identical.** Use exactly
+  the same `shared-key` expression (e.g. `rust-${{ runner.os }}`) in both
+  workflows so the tag build starts warm from the main-branch run. Default
+  rust-cache keys include the job id, so CI and release jobs do **not**
+  share unless you set `shared-key`. Beware drift between contexts:
+  `rust-${{ matrix.runner }}` in the release vs `rust-${{ runner.os }}`
+  in CI evaluate to *different keys* (`rust-ubuntu-24.04` ≠ `rust-Linux`)
+  and silently never share — this exact bug shipped once in this repo's
+  own `rust-bin-release.yml`. One cache family per OS across CI, extended
+  checks, and release; separate keys only for genuinely different
+  instrumentation (e.g. coverage).
 - **Never delete `$CARGO_HOME` or the sysroot in a release job** (brano). If
   disk is tight, do targeted cleanup of *build outputs you already
   packaged*, not the toolchain/registry — or accept a restore-only cache.
@@ -249,3 +256,29 @@ Check these first when a workflow misbehaves:
    fail validation. Pick one: either the gate trusts CI (no skip guard) or
    the release re-tests (guard allowed). We chose trust + no guard — the
    duplicate run on one commit per release is cheap insurance.
+
+## 9. Measured results (pitch, 2026-08-24)
+
+Zero-dependency CLI, but the structure is what scales:
+
+| Run | What ran | Wall-clock |
+|---|---|---|
+| CI gate (PR/main) | fmt+clippy → test on Linux, Windows, macOS (gated) | ~1m20s |
+| Extended matrix (public, free) | 17 jobs: 7-leg OS×toolchain, coverage, docs, pedantic, 5-target release dry-run, actionlint | ~2m |
+| **Release v0.1.1** | validate → 5 native builds → codesign + **notarize** → checksums → GitHub release | **80s** |
+
+Per-leg release times: validate 10s, linux 19–21s, windows 48–54s,
+macOS incl. signing + notarization 45s, publish 7s.
+
+Why it's fast:
+
+- the release **re-runs nothing** — validate checks the green CI run on the
+  tag commit instead of re-testing (pattern A);
+- one cache family per OS (`shared-key: rust-${{ runner.os }}`) shared by
+  CI, extended, and release — the tag build is fully incremental;
+- no redundant compiles within jobs (clippy subsumes `check`);
+- native runners only — no cross-compile setup, no QEMU.
+
+Contrast with the audit baseline: `pam`'s release rebuilds + re-notarizes
+everything CI already built (double full pipeline), and `parser`/`native-score`
+recompile their entire dep trees on every run (registry-only caching).

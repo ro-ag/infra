@@ -1,0 +1,162 @@
+# Extended test matrix — OPTIONAL, for public repos (free minutes) or when
+# you want maximal pre-release signal. The required gate stays ci.yml; this
+# workflow catches platform/toolchain breakage early. Cache keys are one
+# family per OS, shared with CI and release.
+
+name: Extended
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md']
+  pull_request:
+    paths-ignore: ['**/*.md']
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: 0
+  CARGO_PROFILE_TEST_DEBUG: 0
+
+jobs:
+  test-matrix:
+    name: ${{ matrix.os }} / ${{ matrix.toolchain }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # every supported platform on the pinned toolchain
+          - { os: ubuntu-24.04,     toolchain: pinned }
+          - { os: ubuntu-24.04-arm, toolchain: pinned }
+          - { os: windows-2025,     toolchain: pinned }
+          - { os: macos-15,         toolchain: pinned }
+          # toolchain drift early-warning (linux only, cheapest)
+          - { os: ubuntu-24.04,     toolchain: stable  }
+          - { os: ubuntu-24.04,     toolchain: beta    }
+          - { os: ubuntu-24.04,     toolchain: nightly }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Resolve toolchain
+        id: tc
+        shell: bash
+        run: |
+          if [ "${{ matrix.toolchain }}" = pinned ]; then
+            ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
+          else
+            ch="${{ matrix.toolchain }}"
+          fi
+          echo "channel=$ch" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.tc.outputs.channel }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-${{ runner.os }} # one family per OS, shared with CI + release
+      - name: Unit + integration tests
+        run: cargo test --all-targets
+
+  coverage:
+    name: coverage (llvm-cov)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain channel
+        id: tc
+        run: |
+          ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
+          echo "channel=$ch" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.tc.outputs.channel }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ext-${{ runner.os }}-cov
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - name: Line coverage
+        run: cargo llvm-cov --all-targets --summary-only
+
+  docs:
+    name: docs (rustdoc -D warnings)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain channel
+        id: tc
+        run: |
+          ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
+          echo "channel=$ch" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.tc.outputs.channel }}
+      - name: Build docs
+        run: cargo doc --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  clippy-pedantic:
+    name: clippy pedantic (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true # informational; not a merge gate
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain channel
+        id: tc
+        run: |
+          ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
+          echo "channel=$ch" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.tc.outputs.channel }}
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-${{ runner.os }} # one family per OS, shared with CI + release
+      - run: cargo clippy --all-targets -- -W clippy::pedantic
+
+  release-build-dry-run:
+    name: release build ${{ matrix.os }} (dry run)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04,     target: x86_64-unknown-linux-gnu  }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
+          - { os: windows-2025,     target: x86_64-pc-windows-msvc    }
+          - { os: windows-11-arm,   target: aarch64-pc-windows-msvc   }
+          - { os: macos-15,         target: aarch64-apple-darwin      }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Toolchain channel
+        id: tc
+        shell: bash
+        run: |
+          ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
+          echo "channel=$ch" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.tc.outputs.channel }}
+          target: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-${{ runner.os }} # one family per OS, shared with CI + release
+      - name: Verify native toolchain host
+        shell: bash
+        run: |
+          test "$(rustc -vV | sed -n 's/^host: //p')" = "${{ matrix.target }}"
+      - name: cargo build --release --locked
+        run: cargo build --release --locked --target "${{ matrix.target }}"
+
+  workflow-lint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: rhysd/actionlint@v1.7.12
