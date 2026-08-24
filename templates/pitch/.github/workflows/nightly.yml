@@ -15,4 +15,4 @@ concurrency:
 
 jobs:
   nightly:
-    uses: ro-ag/infra/.github/workflows/rust-nightly.yml@main
+    uses: ro-ag/infra/.github/workflows/rust-nightly.yml@4a0d020643440ed60ca0cf4fd743a5a4a4268b28 # main 2026-08-24
