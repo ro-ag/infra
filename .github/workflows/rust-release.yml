@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: write
+  actions: read # CI-status gate (gh run list)
 
 jobs:
   validate:

@@ -21,6 +21,7 @@ jobs:
     # reusable call cannot elevate above the caller's token
     permissions:
       contents: write
+      actions: read # CI-status gate
     uses: ro-ag/infra/.github/workflows/rust-bin-release.yml@main
     with:
       bin: pitch
