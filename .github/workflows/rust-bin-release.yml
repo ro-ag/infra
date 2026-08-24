@@ -213,29 +213,30 @@ jobs:
           requirement='anchor apple generic and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = "${{ inputs.team-id }}"'
           codesign --verify --strict -R="$requirement" "$exe"
 
-      - name: Clean up signing keychain
-        if: always() && matrix.os == 'macos'
-        run: |
-          security delete-keychain "$RUNNER_TEMP/ci-signing.keychain-db" 2>/dev/null || true
-          security default-keychain -d user -s login.keychain-db || true
-          security list-keychains -d user -s login.keychain-db || true
-
       # --- package ---------------------------------------------------------
 
       - name: Package tar.gz
         if: matrix.ext == 'tar.gz'
+        shell: bash
         run: |
           mkdir -p "stage/${PKG}"
           cp "target/${{ matrix.target }}/release/${BIN}" "stage/${PKG}/"
           tar -czf "${PKG}.tar.gz" -C stage "${PKG}"
 
-      - name: Package zip
-        if: matrix.ext == 'zip'
+      - name: Package zip (windows)
+        if: matrix.os == 'windows'
+        shell: bash
         run: |
           mkdir -p "stage/${PKG}"
-          exe="${BIN}"
-          [ "${{ matrix.os }}" = windows ] && exe="${BIN}.exe"
-          cp "target/${{ matrix.target }}/release/${exe}" "stage/${PKG}/"
+          cp "target/${{ matrix.target }}/release/${BIN}.exe" "stage/${PKG}/"
+          # Git Bash has no zip; 7z is preinstalled on windows runners
+          (cd stage && 7z a -tzip "../${PKG}.zip" "${PKG}" >/dev/null)
+
+      - name: Package zip (macos)
+        if: matrix.os == 'macos'
+        run: |
+          mkdir -p "stage/${PKG}"
+          cp "target/${{ matrix.target }}/release/${BIN}" "stage/${PKG}/"
           (cd stage && zip -q -r "../${PKG}.zip" "${PKG}")
 
       - name: Notarize macOS zip
@@ -245,6 +246,13 @@ jobs:
           # bare binaries can't be stapled; the notarization ticket is
           # checked online by Gatekeeper on first run
           xcrun notarytool submit "${PKG}.zip" --keychain-profile ci-notarize --wait
+
+      - name: Clean up signing keychain
+        if: always() && matrix.os == 'macos'
+        run: |
+          security delete-keychain "$RUNNER_TEMP/ci-signing.keychain-db" 2>/dev/null || true
+          security default-keychain -d user -s login.keychain-db || true
+          security list-keychains -d user -s login.keychain-db || true
 
       - uses: actions/upload-artifact@v4
         with:
