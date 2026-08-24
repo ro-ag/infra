@@ -51,13 +51,15 @@ on:
         required: true
 
 permissions:
-  contents: write
-  actions: read # CI-status gate (gh run list)
+  contents: read
 
 jobs:
   validate:
     name: validate tag + CI status
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read # CI-status gate (gh run list)
     outputs:
       version: ${{ steps.tag.outputs.version }}
       notes: ${{ steps.notes.outputs.text }}
@@ -83,14 +85,16 @@ jobs:
             echo "::error::tag $tag != Cargo.toml version $manifest_version"; exit 1; }
 
           git fetch origin main
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+          # GITHUB_SHA is the tag-object SHA for annotated tags — peel it
+          sha=$(git rev-list -n 1 "$GITHUB_REF")
+          git merge-base --is-ancestor "$sha" origin/main || {
             echo "::error::tag commit is not on origin/main"; exit 1; }
 
           run_id=$(gh run list --workflow "$CI_WORKFLOW" --branch main \
-            --commit "$GITHUB_SHA" --status success \
+            --commit "$sha" --status success \
             --limit 1 --json databaseId --jq '.[0].databaseId')
           [ -n "$run_id" ] || {
-            echo "::error::no successful $CI_WORKFLOW run on $GITHUB_SHA"; exit 1; }
+            echo "::error::no successful $CI_WORKFLOW run on $sha"; exit 1; }
           echo "CI run $run_id is green — proceeding without re-running tests."
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -135,16 +139,17 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml 2>/dev/null || true)
           echo "channel=${ch:-stable}" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
           target: ${{ matrix.target }}
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: rust-${{ runner.os }} # must match rust-ci.yml exactly
 
       - name: Verify native toolchain host
+        shell: bash
         run: |
           test "$(rustc -vV | sed -n 's/^host: //p')" = "${{ matrix.target }}" || {
             echo "::error::rustc host != ${{ matrix.target }} — wrong architecture"; exit 1; }
@@ -266,6 +271,8 @@ jobs:
     name: github release
     needs: [validate, build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7 # gh release create --verify-tag needs the repo
 

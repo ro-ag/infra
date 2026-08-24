@@ -39,7 +39,7 @@ CI and release are thin callers of the shared pipelines in
 - `.github/workflows/ci.yml` → `ro-ag/infra/.github/workflows/rust-ci.yml`
   (Linux gate, Windows on PRs+main, macOS gated to main/manual/`run-macos`)
 - `.github/workflows/release.yml` → `ro-ag/infra/.github/workflows/rust-bin-release.yml`
-  (tag `v*` → validate → 4 native builds → macOS codesign + notarize →
+  (tag `v*` → validate → 5 native builds → macOS codesign + notarize →
   checksummed GitHub release)
 
 To cut a release: bump `version` in `Cargo.toml`, add a `## [X.Y.Z]` section

@@ -34,6 +34,9 @@ env:
   CARGO_PROFILE_DEV_DEBUG: 0
   CARGO_PROFILE_TEST_DEBUG: 0
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: fmt + clippy
@@ -48,16 +51,20 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml 2>/dev/null || true)
           echo "channel=${ch:-stable}" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: rust-${{ runner.os }}
       - name: Install system deps
         if: inputs.apt-packages != ''
-        run: sudo apt-get update && sudo apt-get install -y ${{ inputs.apt-packages }}
+        env:
+          APT_PACKAGES: ${{ inputs.apt-packages }}
+        run: |
+          # shellcheck disable=SC2086  # splitting intended: space-separated package list
+          sudo apt-get update && sudo apt-get install -y $APT_PACKAGES
       - run: cargo fmt --all -- --check
       # clippy --all-targets already type-checks the whole graph — no cargo check
       - run: cargo clippy --workspace --all-targets -- -D warnings
@@ -74,16 +81,24 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml 2>/dev/null || true)
           echo "channel=${ch:-stable}" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: rust-${{ runner.os }}
       - name: Install system deps
         if: inputs.apt-packages != ''
-        run: sudo apt-get update && sudo apt-get install -y ${{ inputs.apt-packages }}
-      - run: cargo test ${{ inputs.test-args }}
+        env:
+          APT_PACKAGES: ${{ inputs.apt-packages }}
+        run: |
+          # shellcheck disable=SC2086  # splitting intended: space-separated package list
+          sudo apt-get update && sudo apt-get install -y $APT_PACKAGES
+      - env:
+          TEST_ARGS: ${{ inputs.test-args }}
+        run: |
+          # shellcheck disable=SC2086  # splitting intended: cargo test flags
+          cargo test $TEST_ARGS
 
   test-windows:
     name: test (windows)
@@ -98,13 +113,18 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml 2>/dev/null || true)
           echo "channel=${ch:-stable}" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: rust-${{ runner.os }}
-      - run: cargo test ${{ inputs.test-args }}
+      - env:
+          TEST_ARGS: ${{ inputs.test-args }}
+        shell: bash
+        run: |
+          # shellcheck disable=SC2086  # splitting intended: cargo test flags
+          cargo test $TEST_ARGS
 
   test-macos:
     name: test (macos)
@@ -119,13 +139,17 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml 2>/dev/null || true)
           echo "channel=${ch:-stable}" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: rust-${{ runner.os }}
-      - run: cargo test ${{ inputs.test-args }}
+      - env:
+          TEST_ARGS: ${{ inputs.test-args }}
+        run: |
+          # shellcheck disable=SC2086  # splitting intended: cargo test flags
+          cargo test $TEST_ARGS
 
   # Single status check to require in branch protection.
   ci:

@@ -45,7 +45,7 @@ jobs:
           set -euo pipefail
           tag="${GITHUB_REF_NAME}"
           version="${tag#v}"
-          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
+          [[ "$tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.]+)?$ ]] || {
             echo "::error::tag '$tag' is not semver (vX.Y.Z[-pre])"; exit 1; }
 
           # tag == workspace/crate version (first 'version =' in the root manifest)
@@ -55,15 +55,17 @@ jobs:
 
           # tag commit must be on origin/main
           git fetch origin main
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+          # GITHUB_SHA is the tag-object SHA for annotated tags — peel it
+          sha=$(git rev-list -n 1 "$GITHUB_REF")
+          git merge-base --is-ancestor "$sha" origin/main || {
             echo "::error::tag commit is not on origin/main"; exit 1; }
 
           # CI must be green on this exact commit — no re-testing here
           run_id=$(gh run list --workflow "$CI_WORKFLOW" --branch main \
-            --commit "$GITHUB_SHA" --status success \
+            --commit "$sha" --status success \
             --limit 1 --json databaseId --jq '.[0].databaseId')
           [ -n "$run_id" ] || {
-            echo "::error::no successful $CI_WORKFLOW run on $GITHUB_SHA"; exit 1; }
+            echo "::error::no successful $CI_WORKFLOW run on $sha"; exit 1; }
           echo "CI run $run_id is green — proceeding without re-running tests."
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -96,10 +98,10 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml 2>/dev/null || true)
           echo "channel=${ch:-stable}" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: rust-${{ runner.os }} # warm from the main CI run
 
@@ -125,10 +127,13 @@ jobs:
               3) path="3/${crate:0:1}/$crate" ;;
               *) path="${crate:0:2}/${crate:2:2}/$crate" ;;
             esac
+            found=
             for i in $(seq 1 30); do
-              curl -sf "$idx/$path" | grep -q "\"vers\":\"$VERSION\"" && break
+              if curl -sf "$idx/$path" | grep -q "\"vers\":\"$VERSION\""; then found=1; break; fi
               sleep 5
             done
+            [ -n "$found" ] || {
+              echo "::error::$crate $VERSION not in the sparse index after 150s"; exit 1; }
           done
 
   release:

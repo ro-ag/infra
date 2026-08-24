@@ -1,0 +1,37 @@
+# Caller example: binary release. Copy into a repo as
+# .github/workflows/release.yml. Fires on v* tags; validates metadata and CI
+# status, builds natively per platform, signs + notarizes the macOS binary,
+# and creates the GitHub release (docs/rust-ci-guide.md §6, pattern C).
+#
+# One-time setup for the 6 Apple secrets:
+#   apple-developer-signing/setup-github-secrets.sh owner/repo
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # required: the reusable workflow asks for contents:write, which a
+    # reusable call cannot elevate above the caller's token
+    permissions:
+      contents: write
+      actions: read # CI-status gate
+    uses: ro-ag/infra/.github/workflows/rust-bin-release.yml@main
+    with:
+      bin: my-binary
+      team-id: ABCDE12345
+      signing-identity: "Developer ID Application: Your Name (ABCDE12345)"
+    secrets:
+      APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
