@@ -1,0 +1,48 @@
+# Reusable Rust nightly: cheap scheduled hygiene that doesn't belong in
+# per-PR CI (docs/rust-ci-guide.md §4). Caller owns the cron schedule.
+#
+# - audit: RustSec advisory check against Cargo.lock
+# - msrv:  verifies the crate still builds on its declared rust-version
+
+name: Rust nightly (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      run-msrv:
+        description: Check the MSRV from Cargo.toml rust-version
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  msrv:
+    name: msrv
+    if: inputs.run-msrv
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read rust-version
+        id: rv
+        run: |
+          v=$(grep -m1 '^rust-version' Cargo.toml | cut -d'"' -f2)
+          [ -n "$v" ] || { echo "::error::no rust-version in Cargo.toml"; exit 1; }
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.rv.outputs.version }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: msrv-${{ runner.os }}
+      - run: cargo check --workspace --all-targets

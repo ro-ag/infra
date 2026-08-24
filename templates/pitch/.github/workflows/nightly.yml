@@ -1,0 +1,14 @@
+# Caller example: nightly hygiene. Copy into a repo as
+# .github/workflows/nightly.yml. Cheap scheduled jobs that don't belong in
+# per-PR CI — security audit and MSRV check.
+
+name: Nightly
+
+on:
+  schedule:
+    - cron: '17 5 * * 1' # Mondays ~05:17
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    uses: ro-ag/infra/.github/workflows/rust-nightly.yml@main

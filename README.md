@@ -4,20 +4,25 @@ Shared infrastructure for the `ro-ag` Rust fleet: CI/CD standards and
 reusable GitHub Actions workflows.
 
 - `docs/rust-ci-guide.md` — the fleet standard: triggers, caching, OS
-  gating, and the merge → release pipeline that doesn't redo CI.
+  gating, the merge → release pipeline that doesn't redo CI, and a
+  pitfalls section bought with real failed runs.
 - `docs/audit-2026-08.md` — per-repo audit findings and quick wins.
-- `.github/.github/workflows/rust-ci.yml` — reusable CI (`workflow_call`): Linux lint+test
-  gate, optional Windows/macOS legs, `rust-cache` throughout.
-- `.github/.github/workflows/rust-release.yml` — reusable library release: tag/CI
+- `.github/workflows/rust-ci.yml` — reusable CI (`workflow_call`): Linux
+  lint+test gate, optional Windows/macOS legs, `rust-cache` throughout.
+- `.github/workflows/rust-release.yml` — reusable library release: tag/CI
   validation → crates.io publish → GitHub release, no re-tested CI.
-- `.github/.github/workflows/rust-bin-release.yml` — reusable binary release: 4 native
-  builds (linux amd64/arm64, windows amd64, macOS arm64) → macOS codesign +
-  notarize (fail-closed, via the apple-developer-signing bundle) →
-  checksummed GitHub release.
+- `.github/workflows/rust-bin-release.yml` — reusable binary release: 4
+  native builds (linux amd64/arm64, windows amd64, macOS arm64) → macOS
+  codesign + notarize (fail-closed, via the apple-developer-signing
+  bundle) → checksummed GitHub release.
+- `.github/workflows/rust-nightly.yml` — reusable nightly hygiene:
+  `cargo audit` + MSRV check.
 - `templates/pitch/` — a complete reference app (`pitch`, a
   note/frequency/MIDI CLI) with fleet-standard CI + release callers; copy
-  it to bootstrap a new repo.
+  it to bootstrap a new repo. Dogfooded end-to-end as
+  [ro-ag/pitch](https://github.com/ro-ag/pitch) — see its signed v0.1.0
+  release.
 - `examples/` — caller workflows to copy into each repo.
 
 Repos call the reusable workflows with
-`uses: ro-ag/infra/.github/.github/workflows/rust-ci.yml@main`.
+`uses: ro-ag/infra/.github/workflows/rust-ci.yml@main`.

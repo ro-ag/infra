@@ -61,7 +61,7 @@ jobs:
       version: ${{ steps.tag.outputs.version }}
       notes: ${{ steps.notes.outputs.text }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # ancestry check
 
@@ -125,7 +125,7 @@ jobs:
       VERSION: ${{ needs.validate.outputs.version }}
       PKG: ${{ inputs.bin }}_${{ needs.validate.outputs.version }}_${{ matrix.os }}_${{ matrix.arch }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Toolchain channel
         id: tc
@@ -254,7 +254,7 @@ jobs:
           security default-keychain -d user -s login.keychain-db || true
           security list-keychains -d user -s login.keychain-db || true
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pkg-${{ matrix.os }}-${{ matrix.arch }}
           path: ${{ env.PKG }}.${{ matrix.ext }}
@@ -265,9 +265,9 @@ jobs:
     needs: [validate, build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # gh release create --verify-tag needs the repo
+      - uses: actions/checkout@v7 # gh release create --verify-tag needs the repo
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: pkg-*
           path: dist
