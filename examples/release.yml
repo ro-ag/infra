@@ -1,0 +1,23 @@
+# Caller example: library release. Copy into a repo as
+# .github/workflows/release.yml. Fires on v* tags; validates metadata and CI
+# status, publishes crates, creates the GitHub release — without re-running
+# the test suite (docs/rust-ci-guide.md §6, pattern A).
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    uses: ro-ag/infra/workflows/rust-release.yml@main
+    with:
+      # crates in dependency order, e.g.: "native-ipc-core native-ipc"
+      crates: my-crate
+    secrets:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

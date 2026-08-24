@@ -1,0 +1,138 @@
+# Reusable Rust library release (Pattern A, docs/rust-ci-guide.md §6):
+# validate tag metadata + CI status, publish crates to crates.io, create the
+# GitHub release. It does NOT re-run tests — it verifies the tagged commit
+# already passed the caller's CI workflow on main.
+
+name: Rust library release (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      crates:
+        description: Space-separated crates to publish, in dependency order
+        type: string
+        required: true
+      ci-workflow:
+        description: CI workflow file whose run must be green on the tag commit
+        type: string
+        default: ci.yml
+    secrets:
+      CARGO_REGISTRY_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: validate tag + CI status
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+      notes: ${{ steps.meta.outputs.notes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # needed for the ancestry check
+
+      - name: Validate tag, version, ancestry, CI status
+        id: tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI_WORKFLOW: ${{ inputs.ci-workflow }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
+            echo "::error::tag '$tag' is not semver (vX.Y.Z[-pre])"; exit 1; }
+
+          # tag == workspace/crate version (first 'version =' in the root manifest)
+          manifest_version=$(grep -m1 '^version *=' Cargo.toml | cut -d'"' -f2)
+          [ "$manifest_version" = "$version" ] || {
+            echo "::error::tag $tag != Cargo.toml version $manifest_version"; exit 1; }
+
+          # tag commit must be on origin/main
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+            echo "::error::tag commit is not on origin/main"; exit 1; }
+
+          # CI must be green on this exact commit — no re-testing here
+          run_id=$(gh run list --workflow "$CI_WORKFLOW" --branch main \
+            --commit "$GITHUB_SHA" --status success \
+            --limit 1 --json databaseId --jq '.[0].databaseId')
+          [ -n "$run_id" ] || {
+            echo "::error::no successful $CI_WORKFLOW run on $GITHUB_SHA"; exit 1; }
+          echo "CI run $run_id is green — proceeding without re-running tests."
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Extract release notes from CHANGELOG.md
+        id: meta
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          notes=$(awk -v v="$VERSION" '
+            $0 ~ "^## \\[?" v "\\]?" { found=1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md | sed '/^$/d')
+          [ -n "$notes" ] || { echo "::error::no CHANGELOG section for $VERSION"; exit 1; }
+          {
+            echo 'notes<<EOF'
+            echo "$notes"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: publish crates
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master # reads rust-toolchain.toml
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-${{ runner.os }} # warm from the main CI run
+
+      - name: cargo publish (in dependency order)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CRATES: ${{ inputs.crates }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          for crate in $CRATES; do
+            # skip if already published (idempotent re-runs)
+            if curl -sf "https://crates.io/api/v1/crates/$crate/$VERSION" | grep -q '"version"'; then
+              echo "$crate $VERSION already published, skipping"
+              continue
+            fi
+            cargo publish -p "$crate"
+            # wait for the sparse index so dependent crates can resolve it
+            idx="https://index.crates.io"
+            case ${#crate} in
+              1) path="1/$crate" ;;
+              2) path="2/$crate" ;;
+              3) path="3/${crate:0:1}/$crate" ;;
+              *) path="${crate:0:2}/${crate:2:2}/$crate" ;;
+            esac
+            for i in $(seq 1 30); do
+              curl -sf "$idx/$path" | grep -q "\"vers\":\"$VERSION\"" && break
+              sleep 5
+            done
+          done
+
+  release:
+    name: github release
+    needs: [validate, publish]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOTES: ${{ needs.validate.outputs.notes }}
+        run: |
+          args=(--verify-tag --title "$GITHUB_REF_NAME" --notes "$NOTES")
+          [[ "$GITHUB_REF_NAME" == *-* ]] && args+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" "${args[@]}"
