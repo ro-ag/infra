@@ -42,7 +42,7 @@ jobs:
     name: fmt + clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # dtolnay/rust-toolchain requires an explicit toolchain input; pull the
       # pin from rust-toolchain.toml so the repo file stays the single source
       - name: Toolchain channel
@@ -74,7 +74,7 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Toolchain channel
         id: tc
         shell: bash
@@ -106,7 +106,7 @@ jobs:
     if: inputs.run-windows
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Toolchain channel
         id: tc
         shell: bash
@@ -132,7 +132,7 @@ jobs:
     if: inputs.run-macos
     runs-on: ${{ inputs.macos-runner }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Toolchain channel
         id: tc
         shell: bash

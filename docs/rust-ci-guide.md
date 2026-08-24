@@ -316,17 +316,21 @@ recompile their entire dep trees on every run (registry-only caching).
 
 ## 10. Action pinning policy
 
-- **Third-party actions pin to a full commit SHA with the tag in a trailing
-  comment** — `dtolnay/rust-toolchain@<sha> # master 2026-08-05`. A tag is
-  a movable pointer; a SHA is not. This is the supply-chain boundary.
-- **`actions/*` stay at major tags** (checkout, upload/download-artifact) —
-  first-party, same trust domain as the runner itself.
+- **Every action pins to a full commit SHA with the tag in a trailing
+  comment** — `actions/checkout@<sha> # v7`. A tag is a movable pointer; a
+  SHA is not. This is the supply-chain boundary, first-party included: the
+  repo-level "require SHA pinning" setting (below) blocks `actions/*@v7`
+  exactly like third-party tags, so there is no exemption to maintain.
 - **`.github/dependabot.yml` keeps the pins moving**: weekly
   `github-actions` bumps (plus the template's cargo deps) so pinned SHAs
   don't fossilize. Snippets in this guide show tags for readability; the
   workflow files carry the SHAs.
-- **Enforcement option:** org Settings → Actions → require pinning actions
-  to a full-length commit SHA — makes it policy instead of habit.
+- **Enforcement is on:** repo Settings → Actions → "require actions to be
+  pinned to a full-length commit SHA" is enabled on infra and pitch (set
+  via `gh api -X PUT repos/ro-ag/<repo>/actions/permissions -F
+  enabled=true -F sha_pinning_required=true`). ro-ag is a user account, so
+  the setting is per-repo — enable it on every fleet repo when rolling out
+  the standard. Note it applies to *all* actions, `actions/*` included.
 
 ## 11. crates.io: prefer Trusted Publishing over CARGO_REGISTRY_TOKEN
 
