@@ -1,15 +1,20 @@
 # Extended test matrix — public repo, free minutes, maximum signal.
 # The required gate stays ci.yml (reusable, cost-shaped); this workflow
 # exists to catch platform/toolchain breakage early and often.
+#
+# Carve-out from the fleet's macOS gating rule: the macOS legs here run
+# ungated on every PR because this repo is public (free minutes). Private
+# repos must gate macOS runs per the standard (see ci.yml's run-macos
+# input).
 
 name: Extended
 
 on:
   push:
     branches: [main]
-    paths-ignore: ['**/*.md']
+    paths-ignore: ['**/*.md', 'docs/**']
   pull_request:
-    paths-ignore: ['**/*.md']
+    paths-ignore: ['**/*.md', 'docs/**']
   workflow_dispatch:
 
 concurrency:
@@ -50,10 +55,10 @@ jobs:
             ch="${{ matrix.toolchain }}"
           fi
           echo "channel=$ch" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: rust-${{ runner.os }} # one family per OS, shared with CI + release
       - name: Unit + integration tests
@@ -69,13 +74,14 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
           echo "channel=$ch" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
-      - uses: Swatinem/rust-cache@v2
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: ext-${{ runner.os }}-cov
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@b6ff580856c41316412a0b9b60540fbc6f8c82cc # v2
         with:
           tool: cargo-llvm-cov
       - name: Line coverage
@@ -91,9 +97,12 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
           echo "channel=$ch" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: ext-${{ runner.os }}-doc # separate family from CI + release
       - name: Build docs
         run: cargo doc --no-deps
         env:
@@ -110,11 +119,11 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
           echo "channel=$ch" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
           components: clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: rust-${{ runner.os }} # one family per OS, shared with CI + release
       - run: cargo clippy --all-targets -- -W clippy::pedantic
@@ -139,11 +148,11 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
           echo "channel=$ch" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
           target: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: rust-${{ runner.os }} # one family per OS, shared with CI + release
       - name: Verify native toolchain host
@@ -158,4 +167,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: rhysd/actionlint@v1.7.12
+      - uses: rhysd/actionlint@914e7df21a07ef503a81201c76d2b11c789d3fca # v1.7.12

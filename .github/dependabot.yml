@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # keep pinned third-party actions current
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  # the template app's own crate deps
+  - package-ecosystem: "cargo"
+    directory: "/templates/pitch"
+    schedule:
+      interval: "weekly"

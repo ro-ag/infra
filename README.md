@@ -11,7 +11,7 @@ reusable GitHub Actions workflows.
   lint+test gate, optional Windows/macOS legs, `rust-cache` throughout.
 - `.github/workflows/rust-release.yml` — reusable library release: tag/CI
   validation → crates.io publish → GitHub release, no re-tested CI.
-- `.github/workflows/rust-bin-release.yml` — reusable binary release: 4
+- `.github/workflows/rust-bin-release.yml` — reusable binary release: 5
   native builds (linux amd64/arm64, windows amd64/arm64, macOS arm64) → macOS
   codesign + notarize (fail-closed, via the apple-developer-signing
   bundle) → checksummed GitHub release.
@@ -22,8 +22,9 @@ reusable GitHub Actions workflows.
   it to bootstrap a new repo. Dogfooded end-to-end as
   [ro-ag/pitch](https://github.com/ro-ag/pitch) — see its signed v0.1.0
   release.
-- `examples/` — caller workflows to copy into each repo, including
-  `extended.yml` (optional maximal matrix for public/free-tier repos).
+- `examples/` — caller workflows to copy into each repo: `ci.yml`,
+  `release.yml`, `bin-release.yml` (binary-release caller), `nightly.yml`,
+  and `extended.yml` (optional maximal matrix for public/free-tier repos).
 
 This repo is **private**: it is the copy source for the fleet, not a
 runtime dependency. Private repos may call the reusable workflows directly

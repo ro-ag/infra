@@ -97,8 +97,16 @@ test-macos:
     contains(github.event.pull_request.labels.*.name, 'run-macos')
 ```
 
-If you use the `labeled` trigger for this, guard the job on the specific
-label — otherwise every label change re-runs the whole pipeline (pam).
+The label only fires a run if `pull_request` declares the trigger —
+`types: [opened, synchronize, reopened, labeled]` — otherwise adding
+`run-macos` to a PR starts nothing. And guard the job on the specific
+label: without the `contains(...)` check every label change re-runs the
+whole pipeline (pam).
+
+Carve-out: on **public** repos (free minutes) the extended matrix's macOS
+legs may run ungated on every PR — `examples/extended.yml` does this and
+documents it in its header. On private repos the table above is the rule;
+ungated macOS on PRs burns 10x minutes.
 
 Sanitizers, Miri, fuzz, coverage: nightly `schedule` + `workflow_dispatch`,
 not per-PR.
@@ -147,8 +155,10 @@ re-test:
 3. the CI run for that exact commit succeeded:
 
 ```bash
-gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs" \
-  --jq '[.check_runs[] | select(.name == "ci") | .conclusion] | all(. == "success")'
+sha=$(git rev-list -n 1 "$GITHUB_REF") # peel annotated tags to the commit
+run_id=$(gh run list --workflow ci.yml --branch main --commit "$sha" \
+  --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+[ -n "$run_id" ] || { echo "::error::no green CI run on $sha"; exit 1; }
 ```
 
 If CI is green, publishing needs no test re-run. `cargo publish` always
@@ -241,12 +251,16 @@ Check these first when a workflow misbehaves:
    errors. Run `actionlint` — it catches these and undefined matrix keys
    (`matrix.name` is not implicit).
 6. **Windows steps default to pwsh.** Bash syntax fails with a ParserError —
-   set `shell: bash` explicitly. And Git Bash has no `zip`; use `7z a -tzip`
+   set `shell: bash` explicitly. It is per-step, not per-job: in a matrix
+   that includes Windows, one step missing it fails even when every sibling
+   step has it. And Git Bash has no `zip`; use `7z a -tzip`
    (preinstalled on Windows runners).
-7. **macOS keychain cleanup must be the LAST step.** It deletes the
-   ephemeral keychain holding the `ci-notarize` notarytool profile; running
-   it before notarization fails with `No Keychain password item found for
-   profile: ci-notarize` (exit 69). Keep `if: always()`, place it last.
+7. **macOS keychain cleanup must run even on failure, before the run
+   ends.** It deletes the ephemeral keychain holding the `ci-notarize`
+   notarytool profile; running it before notarization fails with
+   `No Keychain password item found for profile: ci-notarize` (exit 69).
+   Keep `if: always()` — it needn't be the literal last step;
+   `upload-artifact` follows it in `rust-bin-release.yml`.
 8. **`gh release create --verify-tag` needs a checkout.** The release job
    that only downloads artifacts fails with "not a git repository" without
    `actions/checkout`.
@@ -256,6 +270,16 @@ Check these first when a workflow misbehaves:
    fail validation. Pick one: either the gate trusts CI (no skip guard) or
    the release re-tests (guard allowed). We chose trust + no guard — the
    duplicate run on one commit per release is cheap insurance.
+10. **`dtolnay/rust-toolchain` ignores `components` in
+    `rust-toolchain.toml` too.** The repo file listing `clippy, rustfmt`
+    does nothing for the action; the coverage job needs
+    `components: llvm-tools-preview` passed explicitly or `cargo llvm-cov`
+    has no `llvm-profdata` to work with.
+11. **Annotated tags break `$GITHUB_SHA`-based checks.** For an annotated
+    tag, `$GITHUB_SHA` is the *tag object*, not the commit — the ancestry
+    check and the CI-status lookup both come up empty. Peel it once:
+    `sha=$(git rev-list -n 1 "$GITHUB_REF")` works for annotated and
+    lightweight tags alike. Both release workflows do this.
 
 ## 9. Measured results (pitch, 2026-08-24)
 
@@ -264,7 +288,7 @@ Zero-dependency CLI, but the structure is what scales:
 | Run | What ran | Wall-clock |
 |---|---|---|
 | CI gate (PR/main) | fmt+clippy → test on Linux, Windows, macOS (gated) | ~1m20s |
-| Extended matrix (public, free) | 17 jobs: 7-leg OS×toolchain, coverage, docs, pedantic, 5-target release dry-run, actionlint | ~2m |
+| Extended matrix (public, free) | 16 jobs: 7-leg OS×toolchain, coverage, docs, pedantic, 5-target release dry-run, actionlint | ~2m |
 | **Release v0.1.1** | validate → 5 native builds → codesign + **notarize** → checksums → GitHub release | **80s** |
 
 Per-leg release times: validate 10s, linux 19–21s, windows 48–54s,
@@ -282,3 +306,30 @@ Why it's fast:
 Contrast with the audit baseline: `pam`'s release rebuilds + re-notarizes
 everything CI already built (double full pipeline), and `parser`/`native-score`
 recompile their entire dep trees on every run (registry-only caching).
+
+## 10. Action pinning policy
+
+- **Third-party actions pin to a full commit SHA with the tag in a trailing
+  comment** — `dtolnay/rust-toolchain@<sha> # master 2026-08-05`. A tag is
+  a movable pointer; a SHA is not. This is the supply-chain boundary.
+- **`actions/*` stay at major tags** (checkout, upload/download-artifact) —
+  first-party, same trust domain as the runner itself.
+- **`.github/dependabot.yml` keeps the pins moving**: weekly
+  `github-actions` bumps (plus the template's cargo deps) so pinned SHAs
+  don't fossilize. Snippets in this guide show tags for readability; the
+  workflow files carry the SHAs.
+- **Enforcement option:** org Settings → Actions → require pinning actions
+  to a full-length commit SHA — makes it policy instead of habit.
+
+## 11. crates.io: prefer Trusted Publishing over CARGO_REGISTRY_TOKEN
+
+A long-lived `CARGO_REGISTRY_TOKEN` secret is the liability it looks like.
+crates.io Trusted Publishing exchanges a GitHub OIDC token for a
+short-lived publish token via `rust-lang/crates-io-auth-action`
+(`permissions: id-token: write` on the publish job) — nothing long-lived to
+rotate or leak.
+
+It requires per-crate configuration on the crates.io side (each crate names
+the repo and workflow it trusts), so `CARGO_REGISTRY_TOKEN` remains the
+bootstrap path for a crate's first publish. `rust-release.yml` still takes
+the token; switch to OIDC once the crate exists on crates.io.
