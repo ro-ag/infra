@@ -108,7 +108,7 @@ jobs:
           { echo 'text<<EOF'; echo "$text"; echo 'EOF'; } >> "$GITHUB_OUTPUT"
 
   build:
-    name: build ${{ matrix.name }}
+    name: build ${{ matrix.os }}-${{ matrix.arch }}
     needs: validate
     strategy:
       fail-fast: false
