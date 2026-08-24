@@ -192,5 +192,8 @@ hour.
 - [ ] macOS gated to main/nightly/release/labeled-PRs; sanitizers/fuzz nightly
 - [ ] No `check`+`clippy`+`build` triple compile in one job
 - [ ] Release: metadata validation + CI-status check; tests not re-run
+- [ ] Caller of a reusable release workflow declares `permissions: contents: write`
+      itself — a reusable call cannot elevate above the caller's token, and
+      repos default to read-only tokens (release `startup_failure` otherwise)
 - [ ] Release: artifacts reused (B) or warm cache (C) — never a cold full rebuild
 - [ ] `cargo install` tools cached or installed via install actions

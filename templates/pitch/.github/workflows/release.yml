@@ -17,6 +17,10 @@ concurrency:
 
 jobs:
   release:
+    # required: the reusable workflow asks for contents:write, which a
+    # reusable call cannot elevate above the caller's token
+    permissions:
+      contents: write
     uses: ro-ag/infra/.github/workflows/rust-bin-release.yml@main
     with:
       bin: pitch
