@@ -301,7 +301,7 @@ jobs:
       - name: Checksums
         run: |
           cd dist
-          sha256sum * > checksums.txt
+          sha256sum -- * > checksums.txt
           cat checksums.txt
 
       - name: Create release
