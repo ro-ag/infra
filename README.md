@@ -12,7 +12,7 @@ reusable GitHub Actions workflows.
 - `.github/workflows/rust-release.yml` — reusable library release: tag/CI
   validation → crates.io publish → GitHub release, no re-tested CI.
 - `.github/workflows/rust-bin-release.yml` — reusable binary release: 4
-  native builds (linux amd64/arm64, windows amd64, macOS arm64) → macOS
+  native builds (linux amd64/arm64, windows amd64/arm64, macOS arm64) → macOS
   codesign + notarize (fail-closed, via the apple-developer-signing
   bundle) → checksummed GitHub release.
 - `.github/workflows/rust-nightly.yml` — reusable nightly hygiene:
