@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   release:
-    uses: ro-ag/infra/workflows/rust-release.yml@main
+    uses: ro-ag/infra/.github/workflows/rust-release.yml@main
     with:
       # crates in dependency order, e.g.: "native-ipc-core native-ipc"
       crates: my-crate

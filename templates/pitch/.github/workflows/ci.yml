@@ -21,7 +21,7 @@ jobs:
     if: >-
       github.event_name != 'push' ||
       !startsWith(github.event.head_commit.message, 'chore(release)')
-    uses: ro-ag/infra/workflows/rust-ci.yml@main
+    uses: ro-ag/infra/.github/workflows/rust-ci.yml@main
     with:
       run-windows: true
       run-macos: >-
