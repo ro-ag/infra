@@ -32,7 +32,7 @@ jobs:
       version: ${{ steps.tag.outputs.version }}
       notes: ${{ steps.meta.outputs.notes }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0 # needed for the ancestry check
 
@@ -92,7 +92,7 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Toolchain channel
         id: tc
         run: |
@@ -141,7 +141,7 @@ jobs:
     needs: [validate, publish]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7 # gh release create --verify-tag needs the repo
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7 — gh release create --verify-tag needs the repo
 
       - name: Create release
         env:
