@@ -243,3 +243,9 @@ Check these first when a workflow misbehaves:
 8. **`gh release create --verify-tag` needs a checkout.** The release job
    that only downloads artifacts fails with "not a git repository" without
    `actions/checkout`.
+9. **A "skip CI for the release commit" guard conflicts with a CI-status
+   release gate.** If the release validates that CI is green on the exact
+   tag commit, skipping CI on `chore(release)` pushes makes every release
+   fail validation. Pick one: either the gate trusts CI (no skip guard) or
+   the release re-tests (guard allowed). We chose trust + no guard — the
+   duplicate run on one commit per release is cheap insurance.
