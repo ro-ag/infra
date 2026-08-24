@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   ci:
-    uses: ro-ag/infra/workflows/rust-ci.yml@main
+    uses: ro-ag/infra/.github/workflows/rust-ci.yml@main
     with:
       # Windows on PRs + main is the default policy — enable if the crate
       # has platform-specific code:

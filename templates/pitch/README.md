@@ -36,9 +36,9 @@ cargo test
 CI and release are thin callers of the shared pipelines in
 [ro-ag/infra](../..):
 
-- `.github/workflows/ci.yml` → `ro-ag/infra/workflows/rust-ci.yml`
+- `.github/workflows/ci.yml` → `ro-ag/infra/.github/workflows/rust-ci.yml`
   (Linux gate, Windows on PRs+main, macOS gated to main/manual/`run-macos`)
-- `.github/workflows/release.yml` → `ro-ag/infra/workflows/rust-bin-release.yml`
+- `.github/workflows/release.yml` → `ro-ag/infra/.github/workflows/rust-bin-release.yml`
   (tag `v*` → validate → 4 native builds → macOS codesign + notarize →
   checksummed GitHub release)
 
