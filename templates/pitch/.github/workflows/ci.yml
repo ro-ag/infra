@@ -1,0 +1,32 @@
+# Template CI — thin caller; jobs live in ro-ag/infra.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md', 'docs/**']
+  pull_request:
+    paths-ignore: ['**/*.md', 'docs/**']
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    # Release-commit skip guard: the version-bump commit lands on main right
+    # before its tag is pushed; the tag's release run covers that tree.
+    if: >-
+      github.event_name != 'push' ||
+      !startsWith(github.event.head_commit.message, 'chore(release)')
+    uses: ro-ag/infra/workflows/rust-ci.yml@main
+    with:
+      run-windows: true
+      run-macos: >-
+        ${{
+          github.ref == 'refs/heads/main' ||
+          github.event_name == 'workflow_dispatch' ||
+          contains(github.event.pull_request.labels.*.name, 'run-macos')
+        }}

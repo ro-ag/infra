@@ -1,0 +1,31 @@
+# Template release — thin caller; the pipeline lives in ro-ag/infra
+# (workflows/rust-bin-release.yml). Tag-only trigger: never on branches, so
+# it can't race the CI run on the same commit.
+#
+# One-time setup for a new repo:
+#   /Users/rodox/dev/apple-developer-signing/setup-github-secrets.sh owner/repo
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    uses: ro-ag/infra/workflows/rust-bin-release.yml@main
+    with:
+      bin: pitch
+      team-id: 3CAJR4ZDMQ
+      signing-identity: "Developer ID Application: Rodrigo Agurto (3CAJR4ZDMQ)"
+    secrets:
+      APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}

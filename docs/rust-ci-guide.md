@@ -134,6 +134,12 @@ until curl -sf "https://index.crates.io/${crate:0:2}/${crate:2:2}/$crate" \
 
 ### Pattern B — apps with platform packages (Tauri, DMG, installers): reuse CI artifacts
 
+For plain CLI binaries, `workflows/rust-bin-release.yml` already implements
+pattern C with native per-target builds and fail-closed macOS
+signing/notarization (see `templates/pitch/` for a working consumer). The
+artifact-reuse pattern below is for heavy app builds (Tauri, DMGs) where a
+rebuild costs an hour:
+
 Build packages **once**, on the main-branch CI run, and upload them as
 artifacts. The release workflow downloads the artifacts from that run and
 publishes them — no rebuild, no re-sign, no re-notarize:
