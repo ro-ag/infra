@@ -147,7 +147,7 @@ until curl -sf "https://index.crates.io/${crate:0:2}/${crate:2:2}/$crate" \
 
 ### Pattern B — apps with platform packages (Tauri, DMG, installers): reuse CI artifacts
 
-For plain CLI binaries, `.github/.github/workflows/rust-bin-release.yml` already implements
+For plain CLI binaries, `.github/workflows/rust-bin-release.yml` already implements
 pattern C with native per-target builds and fail-closed macOS
 signing/notarization (see `templates/pitch/` for a working consumer). The
 artifact-reuse pattern below is for heavy app builds (Tauri, DMGs) where a
@@ -198,3 +198,39 @@ hour.
       tokens (release `startup_failure` / HTTP 403 otherwise)
 - [ ] Release: artifacts reused (B) or warm cache (C) — never a cold full rebuild
 - [ ] `cargo install` tools cached or installed via install actions
+- [ ] `actionlint` clean on every workflow file (run it locally before pushing
+      workflow changes — it catches most of §8)
+
+## 8. Pitfalls — every one cost a real failed run (pitch v0.1.0 rollout)
+
+Paid for in CI minutes while dogfooding this standard on `ro-ag/pitch`.
+Check these first when a workflow misbehaves:
+
+1. **Reusable workflows must live in `.github/workflows/`.** Any other path
+   (`workflows/`, `ci/`) makes every caller run die instantly with
+   "workflow file issue", on *every* push regardless of triggers.
+2. **Cross-repo reusable calls from private repos need an access grant** on
+   the called repo: Settings → Actions → Access → "accessible from
+   repositories owned by the user", or
+   `gh api -X PUT repos/OWNER/REPO/actions/permissions/access -f access_level=user`.
+3. **`dtolnay/rust-toolchain` does not read `rust-toolchain.toml`.** An empty
+   `toolchain` input fails at the parse step. Extract the channel from the
+   file and pass it explicitly (§5).
+4. **A reusable call cannot elevate permissions.** Repos default to a
+   read-only `GITHUB_TOKEN`; the caller job must declare
+   `permissions: contents: write` **and** `actions: read` (for the CI-status
+   gate's `gh run list`, which 403s without it). Symptom: `startup_failure`.
+5. **YAML: quote values containing `: `**. `name: Contract: exact set` and
+   `signing-identity: Developer ID Application: Name (TEAM)` are parse
+   errors. Run `actionlint` — it catches these and undefined matrix keys
+   (`matrix.name` is not implicit).
+6. **Windows steps default to pwsh.** Bash syntax fails with a ParserError —
+   set `shell: bash` explicitly. And Git Bash has no `zip`; use `7z a -tzip`
+   (preinstalled on Windows runners).
+7. **macOS keychain cleanup must be the LAST step.** It deletes the
+   ephemeral keychain holding the `ci-notarize` notarytool profile; running
+   it before notarization fails with `No Keychain password item found for
+   profile: ci-notarize` (exit 69). Keep `if: always()`, place it last.
+8. **`gh release create --verify-tag` needs a checkout.** The release job
+   that only downloads artifacts fails with "not a git repository" without
+   `actions/checkout`.
