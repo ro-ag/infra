@@ -21,7 +21,7 @@ nearest note plus the cents offset.
 ## Install
 
 Download the archive for your platform from
-[Releases](../../releases) (Linux amd64/arm64, Windows amd64, macOS arm64 —
+[Releases](../../releases) (Linux amd64/arm64, Windows amd64/arm64, macOS arm64 —
 signed and notarized), unpack, put `pitch` on your `PATH`.
 
 ## Build
