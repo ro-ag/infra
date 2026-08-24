@@ -6,6 +6,7 @@
 #   linux amd64  (ubuntu-24.04)      -> tar.gz
 #   linux arm64  (ubuntu-24.04-arm)  -> tar.gz
 #   windows amd64 (windows-2025)     -> zip
+#   windows arm64 (windows-11-arm)   -> zip
 #   macos arm64  (macos-15)          -> zip, codesign + notarize (fail-closed)
 #
 # macOS signing is fail-closed: if any Apple secret is missing the release
@@ -118,6 +119,7 @@ jobs:
           - { runner: ubuntu-24.04,      target: x86_64-unknown-linux-gnu,  os: linux,   arch: amd64, ext: tar.gz }
           - { runner: ubuntu-24.04-arm,  target: aarch64-unknown-linux-gnu, os: linux,   arch: arm64, ext: tar.gz }
           - { runner: windows-2025,      target: x86_64-pc-windows-msvc,    os: windows, arch: amd64, ext: zip    }
+          - { runner: windows-11-arm,    target: aarch64-pc-windows-msvc,   os: windows, arch: arm64, ext: zip    }
           - { runner: macos-15,          target: aarch64-apple-darwin,      os: macos,   arch: arm64, ext: zip    }
     runs-on: ${{ matrix.runner }}
     env:
@@ -283,6 +285,7 @@ jobs:
             "${BIN}_${VERSION}_linux_amd64.tar.gz"
             "${BIN}_${VERSION}_linux_arm64.tar.gz"
             "${BIN}_${VERSION}_windows_amd64.zip"
+            "${BIN}_${VERSION}_windows_arm64.zip"
             "${BIN}_${VERSION}_macos_arm64.zip"
           )
           for f in "${expected[@]}"; do
@@ -291,7 +294,7 @@ jobs:
             [ "$size" -gt 10000 ] || { echo "::error::dist/$f suspiciously small ($size)"; exit 1; }
           done
           actual=$(ls dist)
-          [ "$(echo "$actual" | wc -l)" -eq 4 ] || {
+          [ "$(echo "$actual" | wc -l)" -eq 5 ] || {
             echo "::error::unexpected files in dist: $actual"; exit 1; }
           # archives must contain exactly one top-level entry, no traversal
           for f in dist/*.tar.gz; do
