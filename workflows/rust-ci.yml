@@ -1,0 +1,110 @@
+# Reusable Rust CI. Call from a repo workflow via `workflow_call` — see
+# examples/ci.yml. The caller owns triggers, concurrency, and path filters.
+#
+# Assumes the repo has a rust-toolchain.toml (see docs/rust-ci-guide.md §5).
+
+name: Rust CI (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      run-windows:
+        description: Run the test suite on windows-latest
+        type: boolean
+        default: false
+      run-macos:
+        description: Run the test suite on macOS (10x cost — gate it)
+        type: boolean
+        default: false
+      macos-runner:
+        description: macOS runner label
+        type: string
+        default: macos-15
+      test-args:
+        description: Extra args for cargo test
+        type: string
+        default: --workspace --all-targets
+      apt-packages:
+        description: Space-separated apt packages for Linux jobs (GUI/audio deps)
+        type: string
+        default: ''
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: 0
+  CARGO_PROFILE_TEST_DEBUG: 0
+
+jobs:
+  lint:
+    name: fmt + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master # reads rust-toolchain.toml
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-${{ runner.os }}
+      - name: Install system deps
+        if: inputs.apt-packages != ''
+        run: sudo apt-get update && sudo apt-get install -y ${{ inputs.apt-packages }}
+      - run: cargo fmt --all -- --check
+      # clippy --all-targets already type-checks the whole graph — no cargo check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test-linux:
+    name: test (linux)
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-${{ runner.os }}
+      - name: Install system deps
+        if: inputs.apt-packages != ''
+        run: sudo apt-get update && sudo apt-get install -y ${{ inputs.apt-packages }}
+      - run: cargo test ${{ inputs.test-args }}
+
+  test-windows:
+    name: test (windows)
+    needs: [lint, test-linux]
+    if: inputs.run-windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-${{ runner.os }}
+      - run: cargo test ${{ inputs.test-args }}
+
+  test-macos:
+    name: test (macos)
+    needs: [lint, test-linux]
+    if: inputs.run-macos
+    runs-on: ${{ inputs.macos-runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-${{ runner.os }}
+      - run: cargo test ${{ inputs.test-args }}
+
+  # Single status check to require in branch protection.
+  ci:
+    name: ci
+    needs: [lint, test-linux, test-windows, test-macos]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aggregate
+        run: |
+          results='${{ toJSON(needs) }}'
+          echo "$results"
+          echo "$results" | jq -e '
+            [.[] | .result] | all(. == "success" or . == "skipped")
+          ' > /dev/null
