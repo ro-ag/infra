@@ -24,5 +24,9 @@ reusable GitHub Actions workflows.
   release.
 - `examples/` — caller workflows to copy into each repo.
 
-Repos call the reusable workflows with
-`uses: ro-ag/infra/.github/workflows/rust-ci.yml@main`.
+This repo is **private**: it is the copy source for the fleet, not a
+runtime dependency. Private repos may call the reusable workflows directly
+(`uses: ro-ag/infra/.github/workflows/rust-ci.yml@main`, after a one-time
+access grant). Public repos must vendor the workflow files into their own
+`.github/workflows/` and call them via local `./` paths — `ro-ag/pitch`
+(public, the fleet experiment) is the working example.
