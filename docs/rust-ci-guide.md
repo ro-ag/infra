@@ -98,10 +98,23 @@ components = ["clippy", "rustfmt"]
 profile = "minimal"
 ```
 
-Workflows then use `dtolnay/rust-toolchain@master` **with no version
-input** — it reads the file. Never pin a version in YAML that can drift
-from the repo's pin (brano), and never float on the runner image's stable
-(hexy, metro-2, parser).
+Workflows pass that channel to `dtolnay/rust-toolchain@master` explicitly —
+the action does **not** read `rust-toolchain.toml` itself; extract the pin so
+the file stays the single source:
+
+```yaml
+- name: Toolchain channel
+  id: tc
+  run: |
+    ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml 2>/dev/null || true)
+    echo "channel=${ch:-stable}" >> "$GITHUB_OUTPUT"
+- uses: dtolnay/rust-toolchain@master
+  with:
+    toolchain: ${{ steps.tc.outputs.channel }}
+```
+
+Never pin a version in YAML that can drift from the repo's pin (brano), and
+never float on the runner image's stable (hexy, metro-2, parser).
 
 ## 6. The merge → release pipeline (the big one)
 
