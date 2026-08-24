@@ -22,7 +22,8 @@ reusable GitHub Actions workflows.
   it to bootstrap a new repo. Dogfooded end-to-end as
   [ro-ag/pitch](https://github.com/ro-ag/pitch) — see its signed v0.1.0
   release.
-- `examples/` — caller workflows to copy into each repo.
+- `examples/` — caller workflows to copy into each repo, including
+  `extended.yml` (optional maximal matrix for public/free-tier repos).
 
 This repo is **private**: it is the copy source for the fleet, not a
 runtime dependency. Private repos may call the reusable workflows directly

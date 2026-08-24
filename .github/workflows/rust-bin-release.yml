@@ -142,7 +142,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: rust-${{ matrix.runner }} # warm from the main CI run
+          shared-key: rust-${{ runner.os }} # must match rust-ci.yml exactly
 
       - name: Verify native toolchain host
         run: |
