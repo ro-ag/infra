@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   release:
-    uses: ro-ag/infra/workflows/rust-bin-release.yml@main
+    uses: ro-ag/infra/.github/workflows/rust-bin-release.yml@main
     with:
       bin: pitch
       team-id: 3CAJR4ZDMQ
