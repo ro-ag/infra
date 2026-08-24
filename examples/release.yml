@@ -20,7 +20,7 @@ jobs:
     permissions:
       contents: write
       actions: read # CI-status gate
-    uses: ro-ag/infra/.github/workflows/rust-release.yml@main
+    uses: ro-ag/infra/.github/workflows/rust-release.yml@4a0d020643440ed60ca0cf4fd743a5a4a4268b28 # main 2026-08-24
     with:
       # crates in dependency order, e.g.: "native-ipc-core native-ipc"
       crates: my-crate
