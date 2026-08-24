@@ -7,12 +7,12 @@ audit in `./audit-2026-08.md`.
 
 **This repo is private — it is the copy source, not a runtime dependency.**
 Private repos in the fleet may call the reusable workflows directly
-(`uses: ro-ag/infra/.github/workflows/rust-ci.yml@main`, after the one-time
-access grant in §8.2). **Public repos must vendor**: copy the reusable
-workflow files into the consumer's own `.github/workflows/` and call them
-via local paths (`uses: ./.github/workflows/rust-ci.yml`). GitHub does not
-allow public repositories to call reusable workflows in a private repo.
-`ro-ag/pitch` is the working example of the vendored layout.
+(`uses: ro-ag/infra/.github/workflows/rust-ci.yml@<sha> # main`, after the
+one-time access grant in §8.2). **Public repos must vendor**: copy the
+reusable workflow files into the consumer's own `.github/workflows/` and
+call them via local paths (`uses: ./.github/workflows/rust-ci.yml`). GitHub
+does not allow public repositories to call reusable workflows in a private
+repo. `ro-ag/pitch` is the working example of the vendored layout.
 
 ## 1. Triggers: one CI workflow, no post-merge duplicates
 
@@ -331,6 +331,12 @@ recompile their entire dep trees on every run (registry-only caching).
   enabled=true -F sha_pinning_required=true`). ro-ag is a user account, so
   the setting is per-repo — enable it on every fleet repo when rolling out
   the standard. Note it applies to *all* actions, `actions/*` included.
+- **Reusable-workflow refs count too.** Under enforcement,
+  `uses: ro-ag/infra/.github/workflows/rust-ci.yml@main` is rejected like
+  any tag ref. Private-repo callers pin the reusables to an infra main
+  SHA (`@<sha> # main YYYY-MM-DD`); dependabot's `github-actions` ecosystem
+  bumps them together with the actions. The examples and the pitch template
+  show the pinned form.
 
 ## 11. crates.io: prefer Trusted Publishing over CARGO_REGISTRY_TOKEN
 
