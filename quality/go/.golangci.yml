@@ -1,0 +1,12 @@
+# golangci-lint v2 config template for the Go quality gates.
+# Used by quality.sh when the target repo has no .golangci.yml of its own.
+version: "2"
+linters:
+  enable:
+    - gosec
+    - gocognit
+    - revive
+    - staticcheck
+  settings:
+    gocognit:
+      min-complexity: 15

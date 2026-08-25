@@ -24,7 +24,13 @@ reusable GitHub Actions workflows.
   release.
 - `examples/` — caller workflows to copy into each repo: `ci.yml`,
   `release.yml`, `bin-release.yml` (binary-release caller), `nightly.yml`,
-  and `extended.yml` (optional maximal matrix for public/free-tier repos).
+  `extended.yml` (optional maximal matrix for public/free-tier repos), and
+  `quality.yml` (pre-Sonar quality gates).
+- `quality/` — SonarQube "Sonar way"-parity quality gates, run locally or in
+  CI before Sonar blocks a merge: `python3 quality/quality.py <lang>` for
+  node, typescript, deno, bun, rust, go, python (coverage ≥ 80%, duplication
+  ≤ 3%, cognitive complexity ≤ 15, lint, format, security). See
+  `docs/quality-gates.md` for the gate → tool mapping and known gaps.
 
 This repo is **private**: it is the copy source for the fleet, not a
 runtime dependency. Private repos may call the reusable workflows directly
