@@ -1,0 +1,48 @@
+# Caller example: quality gates. Copy into a repo as .github/workflows/quality.yml.
+# Runs quality/quality.py (vendored from ro-ag/infra, see quality/README.md) so
+# SonarQube "Sonar way" failures surface before Sonar blocks the merge.
+# Linux-only, cheap-first, per repo CI-cost policy. Delete the language jobs
+# the repo does not use.
+
+name: Quality
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md', 'docs/**']
+  pull_request:
+    paths-ignore: ['**/*.md', 'docs/**']
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  QUALITY_AUTO_TOOLS: '1' # let jscpd run via npx without a global install
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        lang: [node] # node | typescript | deno | bun | rust | go | python
+    steps:
+      - uses: actions/checkout@<sha> # v4
+      # Toolchains the matrix entry needs, e.g.:
+      # - uses: actions/setup-node@<sha> # v4   (node/typescript/bun)
+      # - uses: denoland/setup-deno@<sha> # v2  (deno)
+      # - uses: oven-sh/setup-bun@<sha>   # v2  (bun)
+      # - uses: actions/setup-go@<sha>    # v5  (go)
+      # - uses: actions/setup-python@<sha> # v5 (python)
+      # Rust needs no setup beyond dtolnay/rust-toolchain or the default toolchain.
+      - name: Install dependencies
+        run: |
+          case "${{ matrix.lang }}" in
+            node|typescript) npm ci ;;
+            bun) bun install ;;
+            python) uv sync || pip install -r requirements.txt ;;
+          esac
+      - name: Quality gates
+        run: python3 quality/quality.py ${{ matrix.lang }}

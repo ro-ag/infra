@@ -1,0 +1,20 @@
+# quality/python/ruff.toml — SonarQube "Sonar way"-parity ruff config template.
+# Used by quality.sh when the target repo has no ruff config of its own
+# (ruff.toml / .ruff.toml / [tool.ruff] in pyproject.toml).
+# Rule families: E/W (pycodestyle), F (pyflakes), I (isort),
+# S (bandit security), C901 (mccabe cyclomatic complexity — proxy for
+# SonarQube's cognitive-complexity gate; see docs/quality-gates.md gaps).
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W", "I", "S", "C901"]
+
+[lint.mccabe]
+max-complexity = 15
+
+[lint.per-file-ignores]
+# assert (S101) is idiomatic in pytest tests.
+"test_*.py" = ["S101"]
+"**/test_*.py" = ["S101"]
+"tests/**" = ["S101"]
+"conftest.py" = ["S101"]
