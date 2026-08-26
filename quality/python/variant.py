@@ -1,5 +1,10 @@
-"""Python variant — ruff (lint + C901 complexity + bandit S security rules),
-ruff format, pip-audit, coverage.py/pytest-cov, jscpd duplication.
+"""Python variant (uv-first) — ruff (lint + C901 complexity + bandit S
+security rules), ruff format, pip-audit, coverage.py/pytest-cov, jscpd
+duplication.
+
+Toolchain: uv. Tools resolve from PATH first, then via `uvx` (uv's ephemeral
+runner — caches outside the repo, installs nothing into it). Tests prefer the
+project's own `.venv`.
 
 Note: Python has no maintained cognitive-complexity linter; ruff C901
 (mccabe cyclomatic complexity) at threshold 15 is the documented proxy.
@@ -20,9 +25,15 @@ RUFF_HINT = "uv tool install ruff"
 def _resolve_ruff(qg) -> list[str] | None:
     if qg.have("ruff"):
         return ["ruff"]
-    if qg.auto_tools and qg.have("uvx"):
+    if qg.have("uvx"):
         return ["uvx", "ruff"]
     return None
+
+
+def _venv_bin(qg, name: str) -> list[str] | None:
+    """An executable from the target repo's own .venv, if present."""
+    candidate = qg.root / ".venv" / "bin" / name
+    return [str(candidate)] if candidate.is_file() else None
 
 
 def _target_config(qg) -> str | None:
@@ -69,21 +80,41 @@ def _format(qg, ruff, config) -> None:
 
 
 def _security(qg) -> None:
-    if not qg.have("pip-audit"):
-        qg.skip("security", f"pip-audit missing (install: uv tool install pip-audit); "
+    pip_audit = ["pip-audit"] if qg.have("pip-audit") else None
+    if pip_audit is None and qg.have("uvx"):
+        pip_audit = ["uvx", "pip-audit"]
+    if pip_audit is None:
+        qg.skip("security", "pip-audit missing (install: uv tool install pip-audit); "
                             "bandit S rules run via ruff in the lint gate")
         return
-    cmd = ["pip-audit", "-r", "requirements.txt"] if (qg.root / "requirements.txt").is_file() else ["pip-audit"]
+    cmd = pip_audit + (["-r", "requirements.txt"]
+                       if (qg.root / "requirements.txt").is_file() else [])
     qg.run(cmd, gate="security", fail_msg="fix vulnerable dependencies (pip-audit)")
 
 
 def _pytest_cmd(qg) -> list[str] | None:
+    venv = _venv_bin(qg, "pytest")
+    if venv:
+        return venv
     if qg.have("pytest"):
         return ["pytest"]
     if qg.have("python3"):
         probe = subprocess.run(["python3", "-m", "pytest", "--version"], capture_output=True)
         if probe.returncode == 0:
             return ["python3", "-m", "pytest"]
+    return None
+
+
+def _coverage_cmd(qg) -> list[str] | None:
+    venv = _venv_bin(qg, "coverage")
+    if venv:
+        return venv
+    if qg.have("coverage"):
+        return ["coverage"]
+    if qg.have("python3"):
+        probe = subprocess.run(["python3", "-m", "coverage", "--version"], capture_output=True)
+        if probe.returncode == 0:
+            return ["python3", "-m", "coverage"]
     return None
 
 
@@ -95,11 +126,7 @@ def _coverage(qg) -> None:
     if pytest is None:
         qg.fail("coverage", "tests found but pytest missing (install: uv pip install pytest)")
         return
-    coverage = ["coverage"] if qg.have("coverage") else None
-    if coverage is None:
-        probe = subprocess.run(["python3", "-m", "coverage", "--version"], capture_output=True)
-        if probe.returncode == 0:
-            coverage = ["python3", "-m", "coverage"]
+    coverage = _coverage_cmd(qg)
     if coverage is not None:
         try:
             if qg.run(coverage + ["run", "-m", "pytest"]) != 0:

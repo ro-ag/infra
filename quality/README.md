@@ -19,17 +19,20 @@ each variant directory holds that language's config templates.
 ## Usage
 
 Vendor the whole `quality/` directory into a target repo (this repo is the
-fleet copy-source), then run from the target repo root:
+fleet copy-source), then run the language's script from the target repo root:
 
 ```bash
-python3 quality/quality.py node        # Node.js
-python3 quality/quality.py typescript  # TypeScript (node gates + tsconfig check)
-python3 quality/quality.py deno
-python3 quality/quality.py bun
-python3 quality/quality.py rust
-python3 quality/quality.py go
-python3 quality/quality.py python
+bash quality/node/check        # Node.js — eslint, prettier, npm audit, c8/vitest
+bash quality/typescript/check  # TypeScript — deno toolchain for deno.json projects, tsc+eslint for node-style
+bash quality/deno/check        # Deno — deno lint/fmt/test, osv-scanner
+bash quality/bun/check         # Bun — eslint, prettier, bun audit, bun test
+bash quality/rust/check        # Rust — clippy, rustfmt, cargo audit, llvm-cov
+bash quality/go/check          # Go — golangci-lint, gofmt, gosec+govulncheck, go test
+bash quality/python/check      # Python (uv-first) — ruff via uvx, pip-audit, pytest+coverage
 ```
+
+(`quality/<lang>/check` is a thin wrapper for `python3 quality/quality.py
+<lang>`; both forms work.)
 
 Every gate prints `PASS` / `FAIL` / `SKIP`; the script exits 1 if any gate
 fails. A missing **required** tool fails with its install command; a missing

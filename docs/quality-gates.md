@@ -28,18 +28,18 @@ the codebase is clean — local tools can't diff new code):
 | `duplication` | ≤ 3%, block ≥ 100 tokens / 10 lines | jscpd@3 (all languages) |
 | `sast` — injection/secrets patterns | zero findings | Semgrep CE `p/security-audit` (all languages, optional) |
 
-| Sonar way gate | Threshold | node / typescript | deno | bun |
-|---|---|---|---|---|
-| Bugs / code smells | zero issues | eslint (flat config) | `deno lint` | eslint |
-| Cognitive complexity (S3776) | ≤ 15 / function | `sonarjs/cognitive-complexity` | eslint+sonarjs if configured, else SKIP (gap 1) | `sonarjs/cognitive-complexity` |
-| Duplicated lines | ≤ 3% (block ≥ 100 tokens / 10 lines) | jscpd (all languages — see duplication notes) | jscpd | jscpd |
-| Formatting | clean | `prettier --check` | `deno fmt --check` | `prettier --check` |
-| Security | no high/critical | `npm audit --audit-level=high` | `osv-scanner` on `deno.lock` (gap 2) | `bun audit` |
-| Coverage | ≥ 80% lines | vitest `--coverage.thresholds.lines` or `c8 --check-coverage` | `deno test --coverage` + lcov | `bun test --coverage` (lcov) |
+| Sonar way gate | Threshold | node | typescript | deno | bun |
+|---|---|---|---|---|---|
+| Bugs / code smells | zero issues | eslint (flat config) | node-style: `tsc --noEmit` + eslint; deno-style (`deno.json`): delegates to the deno variant | `deno lint` | eslint |
+| Cognitive complexity (S3776) | ≤ 15 / function | `sonarjs/cognitive-complexity` | same (node-style) | eslint+sonarjs if configured, else SKIP (gap 1) | `sonarjs/cognitive-complexity` |
+| Duplicated lines | ≤ 3% (block ≥ 100 tokens / 10 lines) | jscpd (all languages — see duplication notes) | jscpd | jscpd | jscpd |
+| Formatting | clean | `prettier --check` | `prettier --check` (node-style) | `deno fmt --check` | `prettier --check` |
+| Security | no high/critical | `npm audit --audit-level=high` | `npm audit` (node-style) | `osv-scanner` on `deno.lock` (gap 2) | `bun audit` |
+| Coverage | ≥ 80% lines | vitest `--coverage.thresholds.lines` or `c8 --check-coverage` | vitest/c8 (node-style) | `deno test --coverage` + lcov | `bun test --coverage` (lcov) |
 
 | Sonar way gate | rust | go | python |
 |---|---|---|---|
-| Bugs / code smells | `cargo clippy --all-targets -- -D warnings` | golangci-lint (staticcheck, revive, …) | `ruff check` (E, F, W, I, S) |
+| Bugs / code smells | `cargo clippy --all-targets -- -D warnings` | golangci-lint (staticcheck, revive, …) | `ruff check` via uvx (E, F, W, I, S) |
 | Cognitive complexity | `clippy::cognitive_complexity`, `clippy.toml` threshold 15 (Sonar's native rust:S3776 also exists, default 15) | gocognit `min-complexity: 15` (matches go:S3776; Go has no cyclomatic rule) | ruff C901 cyclomatic proxy (gap 3) |
 | Duplicated lines | jscpd | jscpd | jscpd |
 | Formatting | `cargo fmt --check` | `gofmt -l` | `ruff format --check` |

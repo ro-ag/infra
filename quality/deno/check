@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Run the deno quality gates from a target repo root:
+#   bash quality/deno/check
+set -euo pipefail
+exec python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/quality.py" deno "$@"

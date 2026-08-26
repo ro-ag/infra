@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Run the bun quality gates from a target repo root:
+#   bash quality/bun/check
+set -euo pipefail
+exec python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/quality.py" bun "$@"
