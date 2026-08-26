@@ -196,14 +196,31 @@ class QG:
             cmd += ["--format", self.dup_formats]
         self.run(cmd, gate=gate, fail_msg=f"duplicated lines above {self.dup_max}%")
 
+    def gate_sast(self) -> None:
+        """Cross-language SAST gate via Semgrep CE — the open-source stand-in
+        for SonarQube's injection/taint rules (which are paywalled anyway).
+        Optional: SKIP when semgrep is not installed."""
+        gate = "sast"
+        if not self.have("semgrep"):
+            self.skip(gate, "install semgrep (uv tool install semgrep) for the SAST gate")
+            return
+        # p/security-audit: security-focused ruleset for all supported
+        # languages (incl. taint mode). Fetched from the Semgrep registry —
+        # needs network on first run (cached afterwards).
+        self.run(["semgrep", "scan", "--config", "p/security-audit", "--error",
+                  "--quiet", "--exclude", "node_modules", "--exclude", "vendor",
+                  "--exclude", "target", "--exclude", ".venv"],
+                 gate=gate, fail_msg="semgrep security findings (p/security-audit)")
+
     # --- driver --------------------------------------------------------------
 
     def run_gates(self, gates: list[tuple[str, object]]) -> int:
         print(f"quality gates ({self.lang}): coverage>={self.coverage_min}% "
               f"dup<={self.dup_max}% cognitive<={self.cognitive_max}")
+        gates = [(name, self.gate_duplication if name == "duplication" else fn)
+                 for name, fn in gates]
+        gates.append(("sast", self.gate_sast))
         for name, fn in gates:
-            if name == "duplication":
-                fn = self.gate_duplication
             if name in self.skip_gates:
                 self.skip(name, "QUALITY_SKIP")
                 continue

@@ -1,35 +1,32 @@
-# Quality gates — SonarQube parity per language
+# Quality gates — a local, SonarQube-free quality stack
 
-`quality/quality.py` reproduces SonarQube's default **Sonar way** quality gate
-locally (or in pre-merge CI), so failures surface before Sonar blocks a merge.
-Run from the target repo root: `python3 quality/quality.py <lang>`.
+`quality/quality.py` catches locally (or in pre-merge CI) the same classes of
+issues SonarQube's default **Sonar way** gate blocks merges on — **without
+running or talking to SonarQube**. Everything runs on open-source
+alternatives; the goal is to find the issues *before* any Sonar scan ever
+happens. Run from the target repo root: `python3 quality/quality.py <lang>`.
 
 Variants: `node`, `typescript`, `deno`, `bun`, `rust`, `go`, `python`.
 
-## What SonarQube actually gates on ("Sonar way", verified 2026-08)
+## What we reproduce ("Sonar way" defaults, verified 2026-08)
 
-Four conditions, all scoped to **new code**; PR analysis evaluates new code
-only:
+SonarQube's built-in gate has four conditions, all scoped to *new code*:
+no new issues, hotspots reviewed 100%, coverage ≥ 80.0%, duplicated lines
+≤ 3.0% (coverage/duplication skipped under 20 new lines). Cognitive
+complexity is rule S3776, default 15, in every language.
 
-1. No new issues (equivalently: Reliability/Security/Maintainability ratings = A)
-2. Security hotspots reviewed = 100% (transitional: hotspots are being
-   reclassified as regular security issues in 2026.x)
-3. Coverage on new code ≥ **80.0%**
-4. Duplicated lines on new code ≤ **3.0%**
+Our stack runs the equivalents **whole-project** (stricter early, equal once
+the codebase is clean — local tools can't diff new code):
 
-Fudge factor: coverage/duplication conditions are skipped until there are
-≥ 20 new lines. Source:
-[Introduction to quality gates](https://docs.sonarsource.com/sonarqube-server/latest/quality-standards-administration/managing-quality-gates/introduction-to-quality-gates).
-
-Two things our scripts cannot reproduce locally (documented, accepted):
-
-- **New-code scoping** — local tools measure the whole project. Stricter
-  early, equal once the codebase is clean.
-- **S3776 cognitive complexity** is the same rule id in every language with
-  default threshold 15, settable only in a server-side quality profile. Our
-  per-language local stand-ins target the same 15.
-
-## Gate → tool mapping
+| Gate | Threshold | Alternative tool |
+|---|---|---|
+| `lint` — bugs / code smells | zero issues | per-language linter (below) |
+| `cognitive-complexity` | ≤ 15 / function | per-language (below) |
+| `format` | clean | per-language formatter |
+| `security` — vulnerable dependencies | no high/critical | per-language audit (below) |
+| `coverage` | ≥ 80% lines | per-language coverage (below) |
+| `duplication` | ≤ 3%, block ≥ 100 tokens / 10 lines | jscpd@3 (all languages) |
+| `sast` — injection/secrets patterns | zero findings | Semgrep CE `p/security-audit` (all languages, optional) |
 
 | Sonar way gate | Threshold | node / typescript | deno | bun |
 |---|---|---|---|---|
@@ -79,61 +76,39 @@ Two things our scripts cannot reproduce locally (documented, accepted):
    exists; ruff's C901 (mccabe cyclomatic, max 15) is the documented proxy.
    Cyclomatic ≠ cognitive — nesting-heavy code can pass locally and fail in
    Sonar.
-4. **Taint/injection SAST** (SQLi, XSS, SSRF, path traversal: S3649, S5131,
-   S5144, S2083, S2076, …) requires SonarQube Server Developer Edition+ or
-   SonarQube Cloud — free Community Build only has pattern-based security
-   rules. Our local security gates (gosec, ruff S, audits) cover the
-   free-tier gap; they cannot reproduce taint analysis.
+4. **Deep taint SAST parity**: SonarQube's injection rules (SQLi, XSS, SSRF,
+   path traversal) are Developer Edition+ anyway. Our stand-in is the `sast`
+   gate (Semgrep CE `p/security-audit`, taint-capable, all seven languages) —
+   same issue class, different engine, no Sonar involved.
 5. **Deno/Bun are not officially supported SonarQube languages** — projects
    are analyzed as plain TS/JS; `deno.json`/import maps/`jsr:`/`npm:`
    specifiers are unresolved, degrading type-aware rules. (Bun touchpoints:
    SonarJS 13.4 recognizes `bun:test`; Enterprise Advanced Security reads
    `bun.lock`.)
 
-## Feeding local reports into SonarQube (optional)
+## Why these alternatives (mapping to what Sonar would have done)
 
-The same tools can emit reports SonarQube imports, so local and server results
-agree:
+| SonarQube component | Our alternative |
+|---|---|
+| SonarJS / SonarPython / SonarGo / sonar-rust rule engines | eslint+sonarjs, ruff, golangci-lint, clippy, deno lint |
+| S3776 cognitive complexity (default 15) | sonarjs/cognitive-complexity (same engine Sonar publishes), clippy `cognitive_complexity`, gocognit, ruff C901 proxy |
+| CPD duplication metric (3% gate, 100-token/10-line blocks) | jscpd@3 with Sonar-matched block minimums |
+| Taint SAST (paid tiers) | Semgrep CE (`p/security-audit`) |
+| Dependency vulnerability scanning | npm/bun audit, osv-scanner, cargo audit, govulncheck, pip-audit |
+| Coverage gate 80% | c8/vitest, deno coverage, bun test, llvm-cov, go cover, coverage.py |
+| Quality gate as merge blocker | `examples/quality.yml` CI job (branch protection on that check) |
 
-| Tool | Format | SonarQube key |
-|---|---|---|
-| ESLint | `eslint . -f json` | `sonar.eslint.reportPaths` |
-| Clippy | `cargo clippy --message-format=json` (or let the scanner run clippy itself) | `sonar.rust.clippyReport.reportPaths` |
-| Rust coverage | `cargo llvm-cov --lcov` | `sonar.rust.lcov.reportPaths` |
-| golangci-lint | checkstyle XML (`--output.checkstyle.path`) | `sonar.go.golangci-lint.reportPaths` |
-| go vet | stderr text | `sonar.go.govet.reportPaths` |
-| govulncheck | SARIF (`-format sarif`) | `sonar.sarifReportPaths` |
-| Go coverage | native `cover.out` (no conversion needed) | `sonar.go.coverage.reportPaths` |
-| Ruff | `ruff check --output-format=json` | `sonar.python.ruff.reportPaths` |
-| Bandit | JSON | `sonar.python.bandit.reportPaths` |
-| Python coverage | Cobertura XML (`coverage xml`, set `relative_files = True`) | `sonar.python.coverage.reportPaths` |
-| JS/TS coverage | LCOV only | `sonar.javascript.lcov.reportPaths` |
+## Hooking it up (no SonarQube anywhere)
 
-External imported issues are deduplicated against native rules but are **not
-manageable in quality profiles**. Rust note: native Rust support shipped in
-SonarQube Cloud (2025-04) and Server 2025.3; the scanner runs clippy itself
-by default (`sonar.rust.clippy.enabled=false` to disable) — don't both
-auto-run and import, or issues double.
-
-## Where these scripts sit among prevention products
-
-Full "don't let Sonar block the merge" stack, cheapest first:
-
-1. **IDE**: SonarLint in connected mode (VS Code / JetBrains) — same rules,
-   pre-commit feedback.
-2. **Local/pre-push**: these scripts (`python3 quality/quality.py <lang>`),
-   optionally wired into `pre-commit`, `husky`, or `lefthook`.
-3. **CI**: `examples/quality.yml` (this repo) runs the same gates on PRs.
-4. **Sonar-side merge block**: PR analysis (Developer Edition+ / Cloud) with
-   PR decoration + GitHub branch protection requiring the
-   `SonarQube Code Analysis` check; or `SonarSource/sonarqube-scan-action`
-   (v8.x) + `sonarqube-quality-gate-action` (set `pollingTimeoutSec`, default
-   300s); scanner-side `-Dsonar.qualitygate.wait=true` is documented for
-   blocking deployments, not PRs. Use `actions/checkout` with
-   `fetch-depth: 0` — new-code attribution needs full git history.
-
-Note: `rules.sonarsource.com` was decommissioned in Feb 2026 — rule
-documentation now only ships inside SonarQube/SonarLint; don't deep-link it.
+1. **Local/pre-push**: `python3 quality/quality.py <lang>` — wire into
+   `pre-commit`, `husky`, or `lefthook` as a pre-push hook.
+2. **CI merge block**: `examples/quality.yml` (this repo) runs the gates on
+   PRs; make that check required in GitHub branch protection and merges are
+   blocked on exactly these gates.
+3. **Optional hosted dashboards** (if trends/reporting are ever wanted, still
+   no SonarQube): Semgrep Cloud (free tier) for SAST history, Codecov/Coveralls
+   for coverage trends, Qlty (the CodeClimate successor) for smells/dup trends.
+   The gates above stay the source of truth; these are dashboards, not blockers.
 
 ## Config templates
 
@@ -163,6 +138,9 @@ Each variant directory ships the template a target repo can copy:
 | `QUALITY_COGNITIVE_MAX` | `15` | max cognitive complexity per function |
 | `QUALITY_SKIP` | empty | comma-separated gates to skip, e.g. `coverage,security` |
 | `QUALITY_AUTO_TOOLS` | `0` | `1` allows ephemeral tool runners (`npx`, `uvx`) |
+
+Gate names: `lint`, `cognitive-complexity`, `format`, `security`, `coverage`,
+`duplication`, `sast`.
 
 Missing **required** tools FAIL with their install command; missing
 **optional** tools SKIP with a hint. Nothing is installed into the target repo.
