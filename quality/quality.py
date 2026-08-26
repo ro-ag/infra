@@ -31,6 +31,7 @@ import fnmatch
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -72,6 +73,12 @@ class QG:
         self.coverage_min = _env_int("QUALITY_COVERAGE_MIN", 80)
         self.dup_max = _env_int("QUALITY_DUP_MAX", 3)
         self.cognitive_max = _env_int("QUALITY_COGNITIVE_MAX", 15)
+        # SonarQube CPD counts a duplicated block only at >= 100 identical
+        # tokens over >= 10 lines (non-Java languages); jscpd's own defaults
+        # (50 tokens / 5 lines) are stricter than Sonar, so align them.
+        self.dup_min_tokens = _env_int("QUALITY_DUP_MIN_TOKENS", 100)
+        self.dup_min_lines = _env_int("QUALITY_DUP_MIN_LINES", 10)
+        self.dup_formats: str | None = None  # set from the variant's DUP_FORMATS
         self.skip_gates = {g.strip() for g in os.environ.get("QUALITY_SKIP", "").split(",") if g.strip()}
         self.auto_tools = os.environ.get("QUALITY_AUTO_TOOLS", "0") == "1"
         self.failed = False
@@ -152,23 +159,41 @@ class QG:
         return round(hit * 100 / total) if total else 0
 
     def gate_duplication(self) -> None:
-        """The duplication gate — identical for every language."""
+        """The duplication gate — identical for every language.
+
+        jscpd version quirks (verified 2026-08):
+        - v5 ("cpd", Rust rewrite) respects .gitignore by default, dropped
+          --gitignore, does not auto-detect every extension (e.g. .go files
+          are silently skipped → false PASS), and its --min-tokens filters
+          whole files instead of clone blocks. So the npx fallback pins
+          jscpd@3, and the min-tokens/min-lines flags (Sonar CPD parity:
+          a duplicated block needs >= 100 tokens over >= 10 lines) are only
+          passed to jscpd <= 4.
+        """
         gate = "duplication"
-        runner: list[str] | None = None
         if self.have("jscpd"):
             runner = ["jscpd"]
         elif self.auto_tools and self.have("npx"):
-            runner = ["npx", "--yes", "jscpd"]
+            runner = ["npx", "--yes", "jscpd@3"]
         else:
-            self.skip(gate, "install jscpd (npm i -g jscpd) or set QUALITY_AUTO_TOOLS=1")
+            self.skip(gate, "install jscpd (npm i -g jscpd@3) or set QUALITY_AUTO_TOOLS=1")
             return
-        # jscpd v5 (Rust rewrite) respects .gitignore by default and dropped
-        # --gitignore (it only knows --no-gitignore); older versions need the flag.
-        help_out = subprocess.run(runner + ["--help"], capture_output=True, text=True).stdout
-        cmd = runner + [".", "--threshold", str(self.dup_max), "--ignore", JSCPD_IGNORE,
-                        "--reporters", "console"]
-        if "--no-gitignore" not in help_out:
-            cmd.append("--gitignore")
+        version_out = subprocess.run(runner + ["--version"], capture_output=True, text=True)
+        m = re.search(r"\d+", version_out.stdout + version_out.stderr)
+        major = int(m.group(0)) if m else 3
+        cmd = runner + [".", "--threshold", str(self.dup_max),
+                        "--ignore", JSCPD_IGNORE, "--reporters", "console"]
+        if major < 5:
+            cmd += ["--min-tokens", str(self.dup_min_tokens),
+                    "--min-lines", str(self.dup_min_lines),
+                    "--gitignore"]
+        else:
+            print("note: jscpd v5 detected — cannot enforce the 100-token/10-line "
+                  "block minimum; gate may be stricter than SonarQube CPD", file=sys.stderr)
+        # Explicit formats: some jscpd builds silently skip extensions they
+        # do not auto-detect, yielding a false PASS.
+        if self.dup_formats:
+            cmd += ["--format", self.dup_formats]
         self.run(cmd, gate=gate, fail_msg=f"duplicated lines above {self.dup_max}%")
 
     # --- driver --------------------------------------------------------------
@@ -212,6 +237,7 @@ def main() -> int:
     quality_dir = Path(__file__).resolve().parent
     module = load_variant(args.lang, quality_dir)
     qg = QG(args.lang, quality_dir / args.lang, Path.cwd())
+    qg.dup_formats = getattr(module, "DUP_FORMATS", None)
     return qg.run_gates(module.gates(qg))
 
 

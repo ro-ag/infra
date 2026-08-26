@@ -3,6 +3,9 @@ cargo audit, cargo llvm-cov coverage, jscpd duplication."""
 
 from __future__ import annotations
 
+# jscpd v5 needs explicit formats; it silently skips extensions it doesn't auto-detect.
+DUP_FORMATS = "rust"
+
 RUSTUP_HINT = "https://rustup.rs (rustup install stable)"
 
 

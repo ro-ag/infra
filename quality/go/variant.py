@@ -9,6 +9,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+# jscpd v5 needs explicit formats; it silently skips extensions it doesn't auto-detect.
+DUP_FORMATS = "go"
+
 GO_HINT = "install Go: https://go.dev/doc/install"
 GOLANGCI_HINT = "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest"
 GOVULNCHECK_HINT = "go install golang.org/x/vuln/cmd/govulncheck@latest"

@@ -10,6 +10,9 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+# jscpd v5 needs explicit formats; it silently skips extensions it doesn't auto-detect.
+DUP_FORMATS = "typescript,tsx"
+
 _NODE_VARIANT = Path(__file__).resolve().parent.parent / "node" / "variant.py"
 _spec = importlib.util.spec_from_file_location("qg_variant_node", _NODE_VARIANT)
 _node = importlib.util.module_from_spec(_spec)

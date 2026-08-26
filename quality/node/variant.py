@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import jscommon
 
+# jscpd v5 needs explicit formats; it silently skips extensions it doesn't auto-detect.
+DUP_FORMATS = "javascript,jsx,typescript,tsx"
+
 
 def _security(qg) -> None:
     if not (qg.root / "package-lock.json").is_file() and not (qg.root / "npm-shrinkwrap.json").is_file():

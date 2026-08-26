@@ -8,6 +8,9 @@ import subprocess
 
 import jscommon
 
+# jscpd v5 needs explicit formats; it silently skips extensions it doesn't auto-detect.
+DUP_FORMATS = "typescript,tsx,javascript,jsx"
+
 BUN_HINT = "curl -fsSL https://bun.sh/install | bash"
 
 

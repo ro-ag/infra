@@ -44,6 +44,8 @@ Layout: `quality.py` (engine: reporting, thresholds, jscpd, lcov parsing),
 |---|---|---|
 | `QUALITY_COVERAGE_MIN` | `80` | minimum line coverage % |
 | `QUALITY_DUP_MAX` | `3` | max duplicated lines % |
+| `QUALITY_DUP_MIN_TOKENS` | `100` | min tokens per duplicated block (Sonar CPD parity) |
+| `QUALITY_DUP_MIN_LINES` | `10` | min lines per duplicated block (Sonar CPD parity) |
 | `QUALITY_COGNITIVE_MAX` | `15` | max cognitive complexity per function |
 | `QUALITY_SKIP` | empty | comma-separated gates to skip, e.g. `coverage,security` |
 | `QUALITY_AUTO_TOOLS` | `0` | `1` allows ephemeral tool runners (`npx`, `uvx`) |

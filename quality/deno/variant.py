@@ -13,6 +13,9 @@ import shutil
 
 import jscommon
 
+# jscpd v5 needs explicit formats; it silently skips extensions it doesn't auto-detect.
+DUP_FORMATS = "typescript,tsx,javascript,jsx"
+
 DENO_HINT = "curl -fsSL https://deno.land/install.sh | sh"
 
 
