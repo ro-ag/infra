@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+
+# Local project planning state must not be published.
+.ptrack/

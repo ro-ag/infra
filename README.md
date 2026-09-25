@@ -32,11 +32,7 @@ reusable GitHub Actions workflows.
   ≤ 3%, cognitive complexity ≤ 15, lint, format, security). See
   `docs/quality-gates.md` for the gate → tool mapping and known gaps.
 
-This repo is **private**: it is the copy source for the fleet, not a
-runtime dependency. Private repos may call the reusable workflows directly
-(`uses: ro-ag/infra/.github/workflows/rust-ci.yml@<sha> # main`, after a
-one-time access grant — the SHA pin is required once `sha_pinning_required`
-is on, see `docs/rust-ci-guide.md` §10). Public repos must vendor the
-workflow files into their own `.github/workflows/` and call them via local
-`./` paths — `ro-ag/pitch`
-(public, the fleet experiment) is the working example.
+This repo is **public**. Both public and private repositories can call its
+reusable workflows directly, pinned to a full commit SHA. Alternatively,
+vendor the workflow files into the consumer's `.github/workflows/` directory
+and call them via local `./` paths. See `docs/rust-ci-guide.md` for usage.
