@@ -5,14 +5,10 @@ runner-minute cost (**Linux 1x, Windows 2x, macOS 10x**) and wall-clock time.
 Reusable workflow implementations live in `../.github/workflows/`; per-repo
 audit in `./audit-2026-08.md`.
 
-**This repo is private — it is the copy source, not a runtime dependency.**
-Private repos in the fleet may call the reusable workflows directly
-(`uses: ro-ag/infra/.github/workflows/rust-ci.yml@<sha> # main`, after the
-one-time access grant in §8.2). **Public repos must vendor**: copy the
-reusable workflow files into the consumer's own `.github/workflows/` and
-call them via local paths (`uses: ./.github/workflows/rust-ci.yml`). GitHub
-does not allow public repositories to call reusable workflows in a private
-repo. `ro-ag/pitch` is the working example of the vendored layout.
+**This repo is public.** Public and private repositories may call its
+reusable workflows directly, pinned to a full commit SHA. Vendoring the
+workflow files into the consumer's `.github/workflows/` directory remains
+an option; `ro-ag/pitch` demonstrates that layout.
 
 ## 1. Triggers: one CI workflow, no post-merge duplicates
 
