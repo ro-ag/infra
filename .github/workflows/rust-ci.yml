@@ -51,7 +51,7 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml 2>/dev/null || true)
           echo "channel=${ch:-stable}" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
           components: rustfmt, clippy
@@ -81,7 +81,7 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml 2>/dev/null || true)
           echo "channel=${ch:-stable}" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
@@ -113,7 +113,7 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml 2>/dev/null || true)
           echo "channel=${ch:-stable}" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
@@ -139,7 +139,7 @@ jobs:
         run: |
           ch=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml 2>/dev/null || true)
           echo "channel=${ch:-stable}" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master 2026-08-05
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master 2026-08-05
         with:
           toolchain: ${{ steps.tc.outputs.channel }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
